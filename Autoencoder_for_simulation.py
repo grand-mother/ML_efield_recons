@@ -127,20 +127,19 @@ with torch.no_grad():
 num_examples = len(noisy_data)
 for i in range(num_examples):
     # Plot Pure and Denoised data on one plot
-    plt.figure(figsize=(16, 4))
-    plt.plot(originals[i][0, :], label='Pure')
-    plt.plot(denoised_data[i][0, :], label='Denoised', linestyle='--')
-    plt.legend()
-    plt.title(f'Example {i + 1}: Pure and Denoised Data')
-    plt.tight_layout()
-    plt.show()
+    fig, axs = plt.subplots(2, sharex=True, sharey=True, figsize=(16,9))
+    axs[0].plot(originals[i][0, :], label='Pure', color = 'blue')
+    axs[0].set_title(f'Example {i + 1}: Pure and Denoised Data')
+    axs[0].legend(loc='upper right')
+    axs[0].plot(denoised_data[i][0, :], label='Denoised', linestyle='--', color = 'orange')
+    axs[0].legend(loc='upper right')
 
-    # Plot Noisy data on another plot
-    plt.figure(figsize=(16, 4))
-    plt.plot(noisy_data[i][0, :], color='red', label='Noisy')
-    plt.legend()
-    plt.title(f'Example {i + 1}: Noisy Data')
-    plt.tight_layout()
-    plt.show()
+    # Plot the noise on the another plot
+    axs[1].plot(noisy_data[i][0, :], color='red', label='Noise')
+    axs[1].set_title(f'Example {i + 1}: Noised Data')
+    axs[1].legend(loc='upper right')
+    for axs in axs.flat:
+      axs.set(xlabel='time', ylabel='Amplitude')
+    plt.show()  # Show plots
 
 print('Simulation is complete')
