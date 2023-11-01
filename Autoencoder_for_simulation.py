@@ -4,7 +4,9 @@ import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
 from  traces_visualization import prepare_denoise_data
-
+import os
+#running python script properly
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 # Define the custom dataset class
 class NoisyDataset(Dataset):
