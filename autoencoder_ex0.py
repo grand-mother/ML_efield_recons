@@ -35,17 +35,17 @@ test_ds_tensor = dataset(ts, ndat_test)
 # =============================================================================
 # VISUALIZE FAKE SIGNAL
 
-fig = plt.figure()
-ax = plt.gca()
-plt.subplots_adjust(left=0.13)
-for i in range(3):
-    plt.plot(ts, np.array(train_ds_tensor)[i, 0, :], ls='-', lw=2)
-ax.tick_params(labelsize=14)
-# plt.xlabel(r'Simulation number', fontsize=14)
-# plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
-# ax.set_xlim([-10000,10000])
-# ax.set_ylim([-10000,10000])
-plt.show()
+# fig = plt.figure()
+# ax = plt.gca()
+# plt.subplots_adjust(left=0.13)
+# for i in range(3):
+#     plt.plot(ts, np.array(train_ds_tensor)[i, 0, :], ls='-', lw=2)
+# ax.tick_params(labelsize=14)
+# # plt.xlabel(r'Simulation number', fontsize=14)
+# # plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
+# # ax.set_xlim([-10000,10000])
+# # ax.set_ylim([-10000,10000])
+# plt.show()
 
 # =============================================================================
 
@@ -114,14 +114,14 @@ class Decoder(nn.Module):
         x = self.decoder_lin(x)
         x = self.unflatten(x)
         x = self.decoder_conv(x)
-        x = torch.tanh(x)
+        # x = 1.5*torch.tanh(x)
         return x
 
 
 def add_noise(inputs, noise_factor=0.3):
     """Add noise to traces."""
     noisy = inputs + torch.randn_like(inputs) * noise_factor
-    noisy = torch.clip(noisy, -1., 1.)
+    # noisy = torch.clip(noisy, -1., 1.)
     return noisy
 
 
@@ -225,9 +225,12 @@ params_to_optimize = [
     {'params': decoder.parameters()}
 ]
 
-# optimtype = torch.optim.Adam(params_to_optimize, lr=lr)
-optimtype = torch.optim.NAdam(params_to_optimize, momentum_decay=0.003)
+# optimtype = torch.optim.Adam(params_to_optimize)
+optimtype = torch.optim.NAdam(params_to_optimize)
 # optimtype = torch.optim.RAdam(params_to_optimize)
+
+# we can also implement momentum decay, results are quite sensitive to it
+# optimtype = torch.optim.NAdam(params_to_optimize, momentum_decay=0.003)
 
 # Check if the GPU is available
 if torch.cuda.is_available():
@@ -243,8 +246,8 @@ decoder.to(device)
 # =============================================================================
 # TRAINING
 
-noise_factor = 0.001
-num_epochs = 20
+noise_factor = 0.5
+num_epochs = 40
 history_da = {'train_loss': [], 'val_loss': []}
 
 for epoch in range(num_epochs):
@@ -305,14 +308,28 @@ for test_sig in test_loader:
     fig = plt.figure()
     ax = plt.gca()
     plt.subplots_adjust(left=0.13)
-    plt.plot(ts, test_nois[0][0], ls='-', lw=2)
-    plt.plot(ts, test_sig[0][0], ls='-', lw=2)
-    plt.plot(ts, rec_sig[0][0], ls='-', lw=2)
+    plt.plot(ts, test_sig[0][0], ls='-', lw=3, label="Signal")
+    plt.plot(ts, test_nois[0][0], ls='-', lw=2, label="Signal with noise")
+    plt.plot(ts, rec_sig[0][0], ls='-', lw=2, label="Reconstructed signal")
     ax.tick_params(labelsize=14)
     # plt.xlabel(r'Simulation number', fontsize=14)
     # plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
-    # plt.legend(frameon=False, fontsize=14)
+    plt.legend(frameon=False, fontsize=14)
     # ax.set_xlim([-10000,10000])
     # ax.set_ylim([-10000,10000])
     plt.show()
+
+    fig = plt.figure()
+    ax = plt.gca()
+    plt.subplots_adjust(left=0.13)
+    plt.plot(ts, test_sig[0][0], ls='-', lw=3, label="Signal")
+    plt.plot(ts, rec_sig[0][0], ls='-', lw=2, label="Reconstructed signal")
+    ax.tick_params(labelsize=14)
+    # plt.xlabel(r'Simulation number', fontsize=14)
+    # plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
+    plt.legend(frameon=False, fontsize=14)
+    # ax.set_xlim([-10000,10000])
+    # ax.set_ylim([-10000,10000])
+    plt.show()
+
     break
