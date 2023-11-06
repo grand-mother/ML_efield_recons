@@ -333,3 +333,30 @@ for test_sig in test_loader:
     plt.show()
 
     break
+
+# =============================================================================
+# SNR?
+
+test_noise = add_noise(torch.tensor(np.zeros(nts)), noise_factor=0.5)
+
+sigma_noise = np.std(np.array(test_noise))
+print("Sigma noise = %.3f" % sigma_noise)
+
+peak_to_peak_signal = (max(test_sig[0][0])-min(test_sig[0][0])).item()
+print("Peak to peak signal = %.3f" % peak_to_peak_signal)
+
+SNR = peak_to_peak_signal/sigma_noise
+print("SNR = %.3f" % SNR)
+
+
+fig = plt.figure()
+ax = plt.gca()
+plt.subplots_adjust(left=0.13)
+plt.plot(ts, test_noise, ls='-', lw=3, label="Noise only")
+ax.tick_params(labelsize=14)
+# plt.xlabel(r'Simulation number', fontsize=14)
+# plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
+plt.legend(frameon=False, fontsize=14)
+# ax.set_xlim([-10000,10000])
+# ax.set_ylim([-10000,10000])
+plt.show()

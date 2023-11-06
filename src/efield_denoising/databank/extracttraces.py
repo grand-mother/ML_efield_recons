@@ -8,7 +8,7 @@ Visualize data from ZHAireS simulations.
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-import hdf5fileinout as hdf5io
+import efield_denoising.hdf5lib.hdf5fileinout as hdf5io
 import glob
 
 plt.rc('text', usetex=True)

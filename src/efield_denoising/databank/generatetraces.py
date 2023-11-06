@@ -51,17 +51,17 @@ test_ds_tensor = dataset(ts, ndat_test)
 # =============================================================================
 # VISUALIZE FAKE SIGNAL
 
-fig = plt.figure()
-ax = plt.gca()
-plt.subplots_adjust(left=0.13)
-for i in range(3):
-    plt.plot(ts, np.array(train_ds_tensor)[i, 0, :], ls='-', lw=2)
-ax.tick_params(labelsize=14)
-# plt.xlabel(r'Simulation number', fontsize=14)
-# plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
-# ax.set_xlim([-10000,10000])
-# ax.set_ylim([-10000,10000])
-plt.show()
+# fig = plt.figure()
+# ax = plt.gca()
+# plt.subplots_adjust(left=0.13)
+# for i in range(3):
+#     plt.plot(ts, np.array(train_ds_tensor)[i, 0, :], ls='-', lw=2)
+# ax.tick_params(labelsize=14)
+# # plt.xlabel(r'Simulation number', fontsize=14)
+# # plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
+# # ax.set_xlim([-10000,10000])
+# # ax.set_ylim([-10000,10000])
+# plt.show()
 
 # =============================================================================
 # DATALOADER

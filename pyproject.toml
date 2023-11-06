@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=46",
+            "setuptools_scm[toml]>=3.4",
+            "wheel"
+           ]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = './_version.py'
+version_scheme = 'post-release'
+local_scheme = 'no-local-version'
+parentdir_prefix_version = 'efield-ML-'
+
+[tool.autopep8]
+max_line_length = 88
+ignore = "E501,W6"  # or ["E501", "W6"]
