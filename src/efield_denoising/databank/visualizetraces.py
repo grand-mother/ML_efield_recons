@@ -8,7 +8,7 @@ Visualize data from ZHAireS simulations.
 import sys
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from extracttraces import read_data
+from efield_denoising.databank.extracttraces import read_data
 
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
