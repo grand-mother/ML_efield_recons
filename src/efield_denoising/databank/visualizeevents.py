@@ -9,8 +9,8 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
-import hdf5fileinout as hdf5io
-import ComputePeak2PeakOnHDF5 as ComputeP2P
+import efield_denoising.hdf5lib.hdf5fileinout as hdf5io
+import efield_denoising.hdf5lib.ComputePeak2PeakOnHDF5 as ComputeP2P
 import glob
 
 plt.rc('text', usetex=True)
