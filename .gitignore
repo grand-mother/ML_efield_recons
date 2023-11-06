@@ -1,0 +1,22 @@
+# Git ignore fot ToO source parser software
+
+## Caches / Checkpoints, ...
+__pycache__*
+*.coverage
+*.egg-info
+*_version.py
+.DS_Store
+
+## Images
+*.png
+*.pdf
+*.jpg
+
+## Data
+*.db
+*.json
+*.txt
+*.log
+*.xlsx
+*.kml
+*.csv
