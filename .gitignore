@@ -6,6 +6,8 @@ __pycache__*
 *.egg-info
 *_version.py
 .DS_Store
+build
+_build
 
 ## Images
 *.png
