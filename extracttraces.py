@@ -73,27 +73,18 @@ def extract_efield(inputfilename, lenantenna, lenefield):
     return efield_arr
 
 
-def create_efield_file(PATH_loc, nfiles):
-    """Produce file with traces."""
-    PATH_data = PATH_loc+'GP300Outbox/'
-    # PATH_data = PATH_loc+'TheGP300Outbox/'
+def create_efield_file(PATH_data, lenefield, nfiles, nantsave):
+    """Produce file with traces.
 
-    # =============================================================================
-    # PARAMETERS
-
-    progenitor = 'Proton'
-    zenVal = '_'+str(74.8)  # 63.0, 74.8, 81.3, 85.0, 87.1
-    eneVal = '_'+str(1.58)  # ?
-
-    # Fixed length chosen for traces
-    lenefield = 1100
-
+    PATH_data: simulation folder
+    lenefield: fixed length chosen for traces (ex. 900 or 1100)
+    nfiles: number of events to process
+    nantsave: number of traces to save per event
+    """
     # =============================================================================
     # BROWSE SIMULATION FILES (ZHAIRES)
 
     list_f = glob.glob(PATH_data+'*')
-    # list_f = glob.glob(PATH_data+'*'+progenitor+'*')
-    # list_f = glob.glob(PATH_data+'*'+progenitor+'*'+zenVal+'*')
     print('Number of files = %i' % (len(list_f)))
 
     # All antenna positions
@@ -118,9 +109,8 @@ def create_efield_file(PATH_loc, nfiles):
         efield_ord = efield_arr[efield2_ind[::-1], :, :]
 
         # Fill efield array with selected traces
-        N_ant_save = 10
         efield_tot = np.append(efield_tot,
-                               efield_ord[0:N_ant_save, :, :],
+                               efield_ord[0:nantsave, :, :],
                                axis=0)
 
     # =============================================================================
@@ -130,7 +120,8 @@ def create_efield_file(PATH_loc, nfiles):
 
 
 if __name__ == "__main__":
-    create_efield_file(sys.argv[1], int(sys.argv[2]))
+    create_efield_file(sys.argv[1], int(sys.argv[2]),
+                       int(sys.argv[3]), int(sys.argv[4]))
 
 # =============================================================================
 # HOW TO LOAD DATA
