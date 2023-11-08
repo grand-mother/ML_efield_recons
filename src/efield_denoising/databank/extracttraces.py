@@ -6,10 +6,11 @@ Visualize data from ZHAireS simulations.
 """
 
 import sys
+import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import efield_denoising.hdf5lib.hdf5fileinout as hdf5io
-import glob
+from efield_denoising.hdf5lib.mod_fun import filters
 
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
@@ -18,12 +19,12 @@ plt.rc('font', family='serif')
 # FUNCTIONS
 
 
-def save_data(PATH_data, efi):
+def save_data(PATH_data, name, efi):
     """Save traces, reshaping required."""
     # reshaping the array from 3D
     # matrice to 2D matrice.
     efi_reshaped = efi.reshape(efi.shape[0], -1)
-    np.savetxt(PATH_data+'data.csv', efi_reshaped)
+    np.savetxt(PATH_data+name+'.csv', efi_reshaped)
 
 
 def read_data(filename, shape2):
@@ -40,7 +41,7 @@ def read_data(filename, shape2):
 
 def extract_efield(inputfilename, lenantenna, lenefield):
     """Extract E-field data from simulations."""
-    efield_arr = np.zeros(shape=(lenantenna, lenefield, 3))
+    efield_arr = np.zeros(shape=(lenantenna, lenefield, 4))
 
     RunInfo = hdf5io.GetRunInfo(inputfilename)
     EventName = hdf5io.GetEventName(RunInfo, 0)
@@ -64,9 +65,11 @@ def extract_efield(inputfilename, lenantenna, lenefield):
             num_ant = int(AntennaInfo[i]['ID'][1:])
         else:
             num_ant = int(AntennaInfo[i]['ID'][11:])
-        efield_arr[num_ant, :, 0] = efield_loc[0:lenefield, 1]
-        efield_arr[num_ant, :, 1] = efield_loc[0:lenefield, 2]
-        efield_arr[num_ant, :, 2] = efield_loc[0:lenefield, 3]
+
+        efield_arr[num_ant, :, 0] = efield_loc[0:lenefield, 0]
+        efield_arr[num_ant, :, 1] = efield_loc[0:lenefield, 1]
+        efield_arr[num_ant, :, 2] = efield_loc[0:lenefield, 2]
+        efield_arr[num_ant, :, 3] = efield_loc[0:lenefield, 3]
 
     return efield_arr
 
@@ -94,6 +97,7 @@ def create_efield_file(PATH_data, lenefield, nfiles, nantsave):
     # BROWSE EVENTS AND EXTRACT IMPORTANT INFORMATION
 
     efield_tot = np.empty([0, lenefield, 3])
+    efield_filtered_tot = np.empty([0, lenefield, 3])
 
     for k in range(nfiles):
         index = k
@@ -101,20 +105,30 @@ def create_efield_file(PATH_data, lenefield, nfiles, nantsave):
         efield_arr = extract_efield(inputfilename, len(antenna_all), lenefield)
 
         # Find antennas with maximum power
-        efield2_arr = np.sum(efield_arr**2, axis=2)
+        efield2_arr = np.sum(efield_arr[:, :, 1:4]**2, axis=2)
         efield2_arr_max = np.max(efield2_arr, axis=1)
         efield2_ind = np.argsort(efield2_arr_max)
         efield_ord = efield_arr[efield2_ind[::-1], :, :]
 
+        # Create filtered traces
+        efield_fil = np.zeros(shape=(nantsave, lenefield, 4))
+        for i in range(nantsave):
+            efield_ord[i, :, 0] *= 1e-9  # ns to s change required
+            efield_fil[i, :, :] = filters(efield_ord[i, :, :], 50.e6, 200.e6).T
+
         # Fill efield array with selected traces
         efield_tot = np.append(efield_tot,
-                               efield_ord[0:nantsave, :, :],
+                               efield_ord[0:nantsave, :, 1:4],
                                axis=0)
+        efield_filtered_tot = np.append(efield_filtered_tot,
+                                        efield_fil[0:nantsave, :, 1:4],
+                                        axis=0)
 
     # =============================================================================
     # SAVE TO FILE
 
-    save_data(PATH_data, efield_tot)
+    save_data(PATH_data, "efield_traces", efield_tot)
+    save_data(PATH_data, "efield_filtered_traces", efield_filtered_tot)
 
 
 if __name__ == "__main__":
