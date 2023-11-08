@@ -14,38 +14,38 @@ plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 
 
-def vis_traces(PATH_loc, PATH_data, N_ant_vis):
+def vis_traces(PATH_data, name_data, itrace_min, itrace_max):
     """Visualize a given number of traces from file."""
     # LOAD DATA
-    original = read_data(PATH_data+'data.csv', 3)
+    original = read_data(PATH_data+name_data, 3)
 
     # VISUALIZE
-    plt.figure()
-    ax = plt.gca()
-    for i in range(N_ant_vis):
+    for i in range(itrace_min, itrace_max):
+        print(i)
+        plt.figure()
+        ax = plt.gca()
 
         fig, = plt.plot(original[i, :, 0], ls='--')
         plt.plot(original[i, :, 1], ls='-', color=fig.get_color())
         plt.plot(original[i, :, 2], ls=':', color=fig.get_color())
 
-    ax.xaxis.set_ticks_position('both')
-    ax.yaxis.set_ticks_position('both')
-    ax.tick_params(labelsize=14)
-    # ax.set_xlim([-10, 10])
-    # ax.set_ylim([-10, 10])
-    plt.subplots_adjust(left=0.14)
-    ax.set_xlabel(r"Time bins", fontsize=14)
-    ax.set_ylabel(r"Amplitude E-field", fontsize=14)
+        ax.xaxis.set_ticks_position('both')
+        ax.yaxis.set_ticks_position('both')
+        ax.tick_params(labelsize=14)
+        # ax.set_xlim([-10, 10])
+        # ax.set_ylim([-10, 10])
+        plt.subplots_adjust(left=0.14)
+        ax.set_xlabel(r"Time bins", fontsize=14)
+        ax.set_ylabel(r"Amplitude E-field", fontsize=14)
 
-    # PATH_fig = PATH_loc+'Figures/'
-    # plt.savefig(PATH_fig+'Traces/GP300_'
-    #             + progenitor+zenVal+'_'+str(index)+'.pdf')
+    # PATH_fig = PATH_data+'Figures/'
+    # plt.savefig(PATH_fig+'Traces.pdf')
 
     plt.show()
 
 
 if __name__ == "__main__":
-    vis_traces(sys.argv[1], sys.argv[2], int(sys.argv[3]))
+    vis_traces(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]))
 
 # =============================================================================
 # CREATE A DATABANK OF E-FIELD TRACES
