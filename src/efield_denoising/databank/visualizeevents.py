@@ -114,7 +114,7 @@ def vis_events(PATH_data, lenefield=1100, num_event=5, num_trace_vis=5):
         # VISUALIZE TRACES
 
         # Find antennas with maximum power
-        efield2_arr = np.sum(efield_arr[:, :, 1:3]**2, axis=2)
+        efield2_arr = np.sum(efield_arr[:, :, 1:4]**2, axis=2)
         efield2_arr_max = np.max(efield2_arr, axis=1)
         efield2_ind = np.argsort(efield2_arr_max)
         efield_ord = efield_arr[efield2_ind[::-1], :, :]
@@ -127,8 +127,8 @@ def vis_events(PATH_data, lenefield=1100, num_event=5, num_trace_vis=5):
             efield_fil[i, :, 0] *= 1e9
             efield_ord[i, :, 0] *= 1e9
 
-        argmaxEfield_ord = np.argmax(np.sum(efield_ord[0, :, 1:3]**2, axis=1))
-        argmaxEfield_fil = np.argmax(np.sum(efield_fil[0, :, 1:3]**2, axis=1))
+        argmaxEfield_ord = np.argmax(np.sum(efield_ord[0, :, 1:4]**2, axis=1))
+        argmaxEfield_fil = np.argmax(np.sum(efield_fil[0, :, 1:4]**2, axis=1))
 
         # Visualize components of the E-field for those traces
         plt.figure()
