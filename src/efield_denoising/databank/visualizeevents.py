@@ -6,12 +6,13 @@ Visualize data from ZHAireS simulations.
 """
 
 import sys
+import glob
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import efield_denoising.hdf5lib.hdf5fileinout as hdf5io
 import efield_denoising.hdf5lib.ComputePeak2PeakOnHDF5 as ComputeP2P
-import glob
+from efield_denoising.hdf5lib.mod_fun import filters
 
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
@@ -52,7 +53,7 @@ def vis_events(PATH_data, lenefield=1100, num_event=5, num_trace_vis=5):
         print("Azimuth: %.2f" % azimuth)
 
         postab = np.zeros(shape=(nantennas, 3))
-        efield_arr = np.zeros(shape=(len(antenna_all), lenefield, 3))
+        efield_arr = np.zeros(shape=(len(antenna_all), lenefield, 4))
         for i in range(nantennas):
             postab[i, 0] = hdf5io.GetAntennaPosition(AntennaInfo, i)[0]
             postab[i, 1] = hdf5io.GetAntennaPosition(AntennaInfo, i)[1]
@@ -66,9 +67,10 @@ def vis_events(PATH_data, lenefield=1100, num_event=5, num_trace_vis=5):
                 num_ant = int(AntennaInfo[i]['ID'][1:])
             else:
                 num_ant = int(AntennaInfo[i]['ID'][11:])
-            efield_arr[num_ant, :, 0] = efield_loc[0:lenefield, 1]
-            efield_arr[num_ant, :, 1] = efield_loc[0:lenefield, 2]
-            efield_arr[num_ant, :, 2] = efield_loc[0:lenefield, 3]
+            efield_arr[num_ant, :, 0] = efield_loc[0:lenefield, 0]
+            efield_arr[num_ant, :, 1] = efield_loc[0:lenefield, 1]
+            efield_arr[num_ant, :, 2] = efield_loc[0:lenefield, 2]
+            efield_arr[num_ant, :, 3] = efield_loc[0:lenefield, 3]
 
         # COMPUTE TOTAL PEAK TO PEAK AMPLITUDE
         p2pE = ComputeP2P.get_p2p_hdf5(inputfilename, antennamax='All',
@@ -112,18 +114,30 @@ def vis_events(PATH_data, lenefield=1100, num_event=5, num_trace_vis=5):
         # VISUALIZE TRACES
 
         # Find antennas with maximum power
-        efield2_arr = np.sum(efield_arr**2, axis=2)
+        efield2_arr = np.sum(efield_arr[:, :, 1:3]**2, axis=2)
         efield2_arr_max = np.max(efield2_arr, axis=1)
         efield2_ind = np.argsort(efield2_arr_max)
         efield_ord = efield_arr[efield2_ind[::-1], :, :]
 
-        # Visualize one component of the E-field for those traces
+        # Create filtered traces
+        efield_fil = np.zeros(shape=(num_trace_vis, lenefield, 4))
+        for i in range(num_trace_vis):
+            efield_ord[i, :, 0] *= 1e-9
+            efield_fil[i, :, :] = filters(efield_ord[i, :, :], 50.e6, 200.e6).T
+            efield_fil[i, :, 0] *= 1e9
+            efield_ord[i, :, 0] *= 1e9
+
+        argmaxEfield_ord = np.argmax(np.sum(efield_ord[0, :, 1:3]**2, axis=1))
+        argmaxEfield_fil = np.argmax(np.sum(efield_fil[0, :, 1:3]**2, axis=1))
+
+        # Visualize components of the E-field for those traces
         plt.figure()
         ax = plt.gca()
         for i in range(num_trace_vis):
-            fig, = plt.plot(efield_ord[i, :, 0], ls='--')
-            plt.plot(efield_ord[i, :, 1], ls='-', color=fig.get_color())
-            plt.plot(efield_ord[i, :, 2], ls=':', color=fig.get_color())
+            fig, = plt.plot(efield_ord[i, :, 1], ls='--')
+            plt.plot(efield_ord[i, :, 2], ls='-', color=fig.get_color())
+            plt.plot(efield_ord[i, :, 3], ls=':', color=fig.get_color())
+
         ax.xaxis.set_ticks_position('both')
         ax.yaxis.set_ticks_position('both')
         ax.tick_params(labelsize=14)
@@ -133,7 +147,82 @@ def vis_events(PATH_data, lenefield=1100, num_event=5, num_trace_vis=5):
         ax.set_xlabel(r"Time bins", fontsize=14)
         ax.set_ylabel(r"Amplitude E-field", fontsize=14)
         plt.savefig(PATH_fig+'GP300_traces_example'+'_'+str(index)+'.pdf')
-        plt.show()
+
+        # Visualize components of the E-field for those traces - zoom
+        plt.figure()
+        ax = plt.gca()
+        for i in range(num_trace_vis):
+            fig, = plt.plot(efield_ord[i, :, 1], ls='--')
+            plt.plot(efield_ord[i, :, 2], ls='-', color=fig.get_color())
+            plt.plot(efield_ord[i, :, 3], ls=':', color=fig.get_color())
+
+        ax.xaxis.set_ticks_position('both')
+        ax.yaxis.set_ticks_position('both')
+        ax.tick_params(labelsize=14)
+        ax.set_xlim([argmaxEfield_ord-20, argmaxEfield_ord+50])
+        # ax.set_ylim([-10, 10])
+        plt.subplots_adjust(left=0.14)
+        ax.set_xlabel(r"Time bins", fontsize=14)
+        ax.set_ylabel(r"Amplitude E-field", fontsize=14)
+        plt.savefig(PATH_fig+'GP300_traces_example_zoom'+'_'+str(index)+'.pdf')
+
+        # Visualize components of the filtered E-field for those traces
+        plt.figure()
+        ax = plt.gca()
+        for i in range(num_trace_vis):
+            fig, = plt.plot(efield_fil[i, :, 1], ls='--')
+            plt.plot(efield_fil[i, :, 2], ls='-', color=fig.get_color())
+            plt.plot(efield_fil[i, :, 3], ls=':', color=fig.get_color())
+
+        ax.xaxis.set_ticks_position('both')
+        ax.yaxis.set_ticks_position('both')
+        ax.tick_params(labelsize=14)
+        # ax.set_xlim([-10, 10])
+        # ax.set_ylim([-10, 10])
+        plt.subplots_adjust(left=0.14)
+        ax.set_xlabel(r"Time bins", fontsize=14)
+        ax.set_ylabel(r"Amplitude E-field", fontsize=14)
+        plt.savefig(PATH_fig+'GP300_traces_filt_example'+'_'+str(index)+'.pdf')
+
+        # Visualize components of the filtered E-field for those traces - zoom
+        plt.figure()
+        ax = plt.gca()
+        for i in range(num_trace_vis):
+            fig, = plt.plot(efield_fil[i, :, 1], ls='--')
+            plt.plot(efield_fil[i, :, 2], ls='-', color=fig.get_color())
+            plt.plot(efield_fil[i, :, 3], ls=':', color=fig.get_color())
+
+        ax.xaxis.set_ticks_position('both')
+        ax.yaxis.set_ticks_position('both')
+        ax.tick_params(labelsize=14)
+        ax.set_xlim([argmaxEfield_fil-50, argmaxEfield_fil+200])
+        # ax.set_ylim([-10, 10])
+        plt.subplots_adjust(left=0.14)
+        ax.set_xlabel(r"Time bins", fontsize=14)
+        ax.set_ylabel(r"Amplitude E-field", fontsize=14)
+        plt.savefig(PATH_fig+'GP300_traces_filt_example_zoom'+'_'+str(index)+'.pdf')
+
+        # Visualize E-field and filtered E-field for those traces
+        for i in range(num_trace_vis):
+            plt.figure()
+            ax = plt.gca()
+
+            fig, = plt.plot(efield_ord[i, :, 0], efield_ord[i, :, 2], ls='-')
+#            plt.plot(efield_fil.T[:, 0]*1e9, efield_fil.T[:, 1], ls='-')
+            plt.plot(efield_fil[i, :, 0], efield_fil[i, :, 2], ls='-')
+#            plt.plot(efield_fil.T[:, 0]*1e9, efield_fil.T[:, 3], ls='-')
+
+            ax.xaxis.set_ticks_position('both')
+            ax.yaxis.set_ticks_position('both')
+            ax.tick_params(labelsize=14)
+            ax.set_xlim([efield_fil[i, argmaxEfield_fil-50, 0], efield_fil[i, argmaxEfield_fil+200, 0]])
+            # ax.set_ylim([-10, 10])
+            plt.subplots_adjust(left=0.14)
+            ax.set_xlabel(r"Time bins", fontsize=14)
+            ax.set_ylabel(r"Amplitude E-field", fontsize=14)
+            plt.savefig(PATH_fig+'GP300_traces_filt_comp_example'+'_'+str(i)+'.pdf')
+
+#        plt.show()
 
 
 if __name__ == "__main__":
