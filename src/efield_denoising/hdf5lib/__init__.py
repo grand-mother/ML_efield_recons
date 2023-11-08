@@ -1,3 +1,3 @@
-__all__ = [ "hdf5fileinout", "ComputePeak2PeakOnHDF5"]
+__all__ = [ "hdf5fileinout", "ComputePeak2PeakOnHDF5", "mod_fun"]
 
-from . import hdf5fileinout, ComputePeak2PeakOnHDF5
+from . import hdf5fileinout, ComputePeak2PeakOnHDF5, mod_fun
