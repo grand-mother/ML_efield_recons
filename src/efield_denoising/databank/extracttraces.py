@@ -8,6 +8,7 @@ Visualize data from ZHAireS simulations.
 import sys
 import glob
 import numpy as np
+import uproot
 import matplotlib.pyplot as plt
 import efield_denoising.hdf5lib.hdf5fileinout as hdf5io
 from efield_denoising.hdf5lib.mod_fun import filters
@@ -40,7 +41,7 @@ def read_data(filename, shape2):
 
 
 def extract_efield(inputfilename, lenantenna, lenefield):
-    """Extract E-field data from simulations."""
+    """Extract E-field data from simulations with hdf5 format."""
     efield_arr = np.zeros(shape=(lenantenna, lenefield, 4))
 
     RunInfo = hdf5io.GetRunInfo(inputfilename)
@@ -131,9 +132,77 @@ def create_efield_file(PATH_data, lenefield, nfiles, nantsave):
     save_data(PATH_data, "efield_filtered_traces", efield_filtered_tot)
 
 
+def extract_tra(inputfilename, quant):
+    """Extract E-field data from simulations with root format."""
+    # file = uproot.open(PATH_LIB+SIM_NAME+"/gr_"+SIM_NAME+".RawRoot")
+    file = uproot.open(inputfilename)
+    if quant == 'efield':
+        tree = file['tefield']
+    elif quant == 'voltage':
+        tree = file['tvoltage']
+    trace_dict = tree['trace'].arrays().tolist()
+    traces = np.array(trace_dict[0]['trace'])
+    return traces
+
+
+def create_trace_db(PATH_data, lentrace, nfiles, nantsave):
+    """Produce file with traces with root input.
+
+    PATH_data: simulation folder
+    lenefield: fixed length chosen for traces (ex. 900 or 1100)
+    nfiles: number of events to process
+    nantsave: number of traces to save per event
+    """
+    # BROWSE SIMULATION FILES (ZHAIRES)
+    list_f = glob.glob(PATH_data+'*')
+    print('Number of files = %i' % (len(list_f)))
+
+    # CREATE A DATABANK OF TRACES
+    efield_tot = np.empty([0, 3, lentrace])
+    voltage_tot = np.empty([0, 3, lentrace])
+    for k in range(nfiles):
+        index = k
+        print(k)
+        print(list_f[index])
+        inputfilename = glob.glob(list_f[index] + '/gr*.RawRoot')[0]
+        file = uproot.open(inputfilename)
+        if file['tshower']['zenith'].array()[0] > 70.:
+            efield_arr = extract_tra(inputfilename, 'efield')
+            inputfilename = glob.glob(list_f[index] + '/gr*.Voltage')[0]
+            voltage_arr = extract_tra(inputfilename, 'voltage')
+            # Find antennas with maximum power
+            efield2_arr = np.sum(efield_arr[:, :, :]**2, axis=1)
+            efield2_arr_max = np.max(efield2_arr, axis=1)
+            efield2_ind = np.argsort(efield2_arr_max)
+            efield_ord = efield_arr[efield2_ind[::-1], :, :]
+            voltage_ord = voltage_arr[efield2_ind[::-1], :, :]
+            efield_tot = np.append(efield_tot,
+                                   efield_ord[0:nantsave, :, :lentrace],
+                                   axis=0)
+            voltage_tot = np.append(voltage_tot,
+                                    voltage_ord[0:nantsave, :, :lentrace],
+                                    axis=0)
+    # Normalize and transpose
+    efield_max = np.max(np.abs(efield_tot))
+    print("efield_max = %.2e" % efield_max)
+    voltage_max = np.max(np.abs(voltage_tot))
+    print("voltage_max = %.2e" % voltage_max)
+    efield_tot = np.transpose(efield_tot/efield_max, axes=(0, 2, 1))
+    voltage_tot = np.transpose(voltage_tot/voltage_max, axes=(0, 2, 1))
+
+    # SAVE TO FILE
+    save_data(PATH_data, "efield_traces", efield_tot)
+    save_data(PATH_data, "voltage_traces", voltage_tot)
+
+
 if __name__ == "__main__":
     create_efield_file(sys.argv[1], int(sys.argv[2]),
-                       int(sys.argv[3]), int(sys.argv[4]))
+                        int(sys.argv[3]), int(sys.argv[4]))
+
+# path_loc = '/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023/'
+# create_trace_db(path_loc, 1000, 711, 5)
+
+# print(np.shape(read_data("/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023/voltage_traces.csv", 3)))
 
 # =============================================================================
 # HOW TO LOAD DATA
