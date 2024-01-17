@@ -15,7 +15,8 @@ from torch.utils.data import DataLoader
 from torch import nn
 import torch.nn.functional as F
 import torch.optim as optim
-from generatetraces import dataset
+from databank.generatetraces import dataset
+from databank.extracttraces import read_data
 
 
 # =============================================================================
@@ -31,6 +32,8 @@ ndat_test = 10
 train_ds_tensor = dataset(ts, ndat_train)
 valid_ds_tensor = dataset(ts, ndat_valid)
 test_ds_tensor = dataset(ts, ndat_test)
+
+print(np.shape(train_ds_tensor))
 
 # =============================================================================
 # VISUALIZE FAKE SIGNAL
@@ -51,9 +54,9 @@ test_ds_tensor = dataset(ts, ndat_test)
 
 batch_size = 1
 train_loader = torch.utils.data.DataLoader(train_ds_tensor,
-                                           batch_size=batch_size)
+                                            batch_size=batch_size)
 valid_loader = torch.utils.data.DataLoader(valid_ds_tensor,
-                                           batch_size=batch_size)
+                                            batch_size=batch_size)
 test_loader = torch.utils.data.DataLoader(test_ds_tensor,
                                           batch_size=1,
                                           shuffle=True)
@@ -85,9 +88,14 @@ class Encoder(nn.Module):
         )
 
     def forward(self, x):
+        print("ENCODE")
+        print(np.shape(x))
         x = self.encoder_cnn(x)
+        print(np.shape(x))
         x = self.flatten(x)
+        print(np.shape(x))
         x = self.encoder_lin(x)
+        print(np.shape(x))
         return x
 
 
@@ -111,9 +119,14 @@ class Decoder(nn.Module):
         )
 
     def forward(self, x):
+        print("DECODE")
+        print(np.shape(x))
         x = self.decoder_lin(x)
+        print(np.shape(x))
         x = self.unflatten(x)
+        print(np.shape(x))
         x = self.decoder_conv(x)
+        print(np.shape(x))
         # x = 1.5*torch.tanh(x)
         return x
 
@@ -135,6 +148,7 @@ def train_epoch_den(encoder, decoder, device, dataloader, loss_fn, optimizer,
     # Iterate the dataloader
     for image_batch in dataloader:
         image_noisy = add_noise(image_batch, noise_factor).double()
+        print(np.shape(image_noisy))
         # Move tensor to the proper device
         image_batch = image_batch.to(device)
         image_noisy = image_noisy.to(device)
@@ -293,70 +307,70 @@ plt.legend(frameon=False, fontsize=14)
 plt.show()
 
 
-# =============================================================================
-# VISUALIZE SOME TESTS
+# # =============================================================================
+# # VISUALIZE SOME TESTS
 
-for test_sig in test_loader:
-    test_sig = torch.reshape(test_sig[0], (1, 1, 1024))
-    test_nois = add_noise(test_sig, noise_factor)
-    test_nois = test_nois.to(device)
-    encoder.eval()
-    decoder.eval()
-    with torch.no_grad():
-        rec_sig = decoder(encoder(test_nois))
+# for test_sig in test_loader:
+#     test_sig = torch.reshape(test_sig[0], (1, 1, 1024))
+#     test_nois = add_noise(test_sig, noise_factor)
+#     test_nois = test_nois.to(device)
+#     encoder.eval()
+#     decoder.eval()
+#     with torch.no_grad():
+#         rec_sig = decoder(encoder(test_nois))
 
-    fig = plt.figure()
-    ax = plt.gca()
-    plt.subplots_adjust(left=0.13)
-    plt.plot(ts, test_sig[0][0], ls='-', lw=3, label="Signal")
-    plt.plot(ts, test_nois[0][0], ls='-', lw=2, label="Signal with noise")
-    plt.plot(ts, rec_sig[0][0], ls='-', lw=2, label="Reconstructed signal")
-    ax.tick_params(labelsize=14)
-    # plt.xlabel(r'Simulation number', fontsize=14)
-    # plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
-    plt.legend(frameon=False, fontsize=14)
-    # ax.set_xlim([-10000,10000])
-    # ax.set_ylim([-10000,10000])
-    plt.show()
+#     fig = plt.figure()
+#     ax = plt.gca()
+#     plt.subplots_adjust(left=0.13)
+#     plt.plot(ts, test_sig[0][0], ls='-', lw=3, label="Signal")
+#     plt.plot(ts, test_nois[0][0], ls='-', lw=2, label="Signal with noise")
+#     plt.plot(ts, rec_sig[0][0], ls='-', lw=2, label="Reconstructed signal")
+#     ax.tick_params(labelsize=14)
+#     # plt.xlabel(r'Simulation number', fontsize=14)
+#     # plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
+#     plt.legend(frameon=False, fontsize=14)
+#     # ax.set_xlim([-10000,10000])
+#     # ax.set_ylim([-10000,10000])
+#     plt.show()
 
-    fig = plt.figure()
-    ax = plt.gca()
-    plt.subplots_adjust(left=0.13)
-    plt.plot(ts, test_sig[0][0], ls='-', lw=3, label="Signal")
-    plt.plot(ts, rec_sig[0][0], ls='-', lw=2, label="Reconstructed signal")
-    ax.tick_params(labelsize=14)
-    # plt.xlabel(r'Simulation number', fontsize=14)
-    # plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
-    plt.legend(frameon=False, fontsize=14)
-    # ax.set_xlim([-10000,10000])
-    # ax.set_ylim([-10000,10000])
-    plt.show()
+#     fig = plt.figure()
+#     ax = plt.gca()
+#     plt.subplots_adjust(left=0.13)
+#     plt.plot(ts, test_sig[0][0], ls='-', lw=3, label="Signal")
+#     plt.plot(ts, rec_sig[0][0], ls='-', lw=2, label="Reconstructed signal")
+#     ax.tick_params(labelsize=14)
+#     # plt.xlabel(r'Simulation number', fontsize=14)
+#     # plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
+#     plt.legend(frameon=False, fontsize=14)
+#     # ax.set_xlim([-10000,10000])
+#     # ax.set_ylim([-10000,10000])
+#     plt.show()
 
-    break
+#     break
 
-# =============================================================================
-# SNR?
+# # =============================================================================
+# # SNR?
 
-test_noise = add_noise(torch.tensor(np.zeros(nts)), noise_factor=0.5)
+# test_noise = add_noise(torch.tensor(np.zeros(nts)), noise_factor=0.5)
 
-sigma_noise = np.std(np.array(test_noise))
-print("Sigma noise = %.3f" % sigma_noise)
+# sigma_noise = np.std(np.array(test_noise))
+# print("Sigma noise = %.3f" % sigma_noise)
 
-peak_to_peak_signal = (max(test_sig[0][0])-min(test_sig[0][0])).item()
-print("Peak to peak signal = %.3f" % peak_to_peak_signal)
+# peak_to_peak_signal = (max(test_sig[0][0])-min(test_sig[0][0])).item()
+# print("Peak to peak signal = %.3f" % peak_to_peak_signal)
 
-SNR = peak_to_peak_signal/sigma_noise
-print("SNR = %.3f" % SNR)
+# SNR = peak_to_peak_signal/sigma_noise
+# print("SNR = %.3f" % SNR)
 
 
-fig = plt.figure()
-ax = plt.gca()
-plt.subplots_adjust(left=0.13)
-plt.plot(ts, test_noise, ls='-', lw=3, label="Noise only")
-ax.tick_params(labelsize=14)
-# plt.xlabel(r'Simulation number', fontsize=14)
-# plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
-plt.legend(frameon=False, fontsize=14)
-# ax.set_xlim([-10000,10000])
-# ax.set_ylim([-10000,10000])
-plt.show()
+# fig = plt.figure()
+# ax = plt.gca()
+# plt.subplots_adjust(left=0.13)
+# plt.plot(ts, test_noise, ls='-', lw=3, label="Noise only")
+# ax.tick_params(labelsize=14)
+# # plt.xlabel(r'Simulation number', fontsize=14)
+# # plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
+# plt.legend(frameon=False, fontsize=14)
+# # ax.set_xlim([-10000,10000])
+# # ax.set_ylim([-10000,10000])
+# plt.show()
