@@ -6,6 +6,7 @@ Visualize data from ZHAireS simulations.
 """
 
 import sys
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from efield_denoising.databank.extracttraces import read_data
@@ -22,12 +23,44 @@ def vis_traces(PATH_data, name_data, itrace_min, itrace_max):
     # VISUALIZE
     for i in range(itrace_min, itrace_max):
         print(i)
+        # Peak to peak amplitude - special case y polarization
+        peaktopeak = np.max(original[i, :, 1])-np.min(original[i, :, 1])
+        print("Peak to peak amplitude: %.2e" % peaktopeak)
+
+        # Signal to noise ratio
+        SNR = 1.
+        sig_noise = peaktopeak/(2.*SNR)
+
+        np.random.seed(0)
+        noise = np.random.normal(loc=0.0,
+                                 scale=sig_noise,
+                                 size=len(original[i, :, 1]))
+        # Noisy signal
+        sig = original[i, :, 1] + noise
+
+        # # Three signal components
+        # plt.figure()
+        # ax = plt.gca()
+
+        # fig, = plt.plot(original[i, :, 0], ls='--')
+        # plt.plot(original[i, :, 1], ls='-', color=fig.get_color())
+        # plt.plot(original[i, :, 2], ls=':', color=fig.get_color())
+
+        # ax.xaxis.set_ticks_position('both')
+        # ax.yaxis.set_ticks_position('both')
+        # ax.tick_params(labelsize=14)
+        # # ax.set_xlim([-10, 10])
+        # # ax.set_ylim([-10, 10])
+        # plt.subplots_adjust(left=0.14)
+        # ax.set_xlabel(r"Time bins", fontsize=14)
+        # ax.set_ylabel(r"Amplitude E-field", fontsize=14)
+
+        # Signal and noisy signal
         plt.figure()
         ax = plt.gca()
 
-        fig, = plt.plot(original[i, :, 0], ls='--')
-        plt.plot(original[i, :, 1], ls='-', color=fig.get_color())
-        plt.plot(original[i, :, 2], ls=':', color=fig.get_color())
+        fig, = plt.plot(sig, ls='-')
+        plt.plot(original[i, :, 1], ls='-')
 
         ax.xaxis.set_ticks_position('both')
         ax.yaxis.set_ticks_position('both')
@@ -41,11 +74,75 @@ def vis_traces(PATH_data, name_data, itrace_min, itrace_max):
     # PATH_fig = PATH_data+'Figures/'
     # plt.savefig(PATH_fig+'Traces.pdf')
 
+        quant = np.zeros(len(sig))
+        for k in range(len(sig)):
+            quant[k] = np.sum(sig[0:k]**2)
+
+        derivative = np.diff(quant)
+
+        plt.figure()
+        ax = plt.gca()
+
+        # plt.plot(quant, ls='-',
+        #          label=r"$\int_{t_0}^t {\rm d}t' (E_{\rm signal}(t')+E_{\rm noise}(t'))^2$")
+        plt.plot(derivative, ls='-',
+                 label=r"${\rm d}/{\rm d}t \int_{t_0}^t {\rm d}t' (E_{\rm signal}(t')+E_{\rm noise}(t'))^2$")
+        # plt.plot(derivative**0*10*(sig_noise)**2, ls='--')
+        plt.plot(sig**2, ls='--', label=r'$(E_{\rm signal}+E_{\rm noise})^2$')
+        # plt.plot(original[i, :, 1]**2, ls='-', label=r'$(E_{\rm signal})^2$')
+
+        ax.xaxis.set_ticks_position('both')
+        ax.yaxis.set_ticks_position('both')
+        ax.tick_params(labelsize=14)
+        # ax.set_xlim([-10, 10])
+        # ax.set_ylim([-10, 10])
+        plt.subplots_adjust(left=0.14)
+        ax.set_xlabel(r"Time bins", fontsize=14)
+        # ax.set_ylabel(r"Amplitude E-field", fontsize=14)
+        plt.legend(fontsize=14, frameon=False)
+
+        sigsig = np.zeros(int(len(sig)/2))
+        sigori = np.zeros(len(sigsig))
+        print(len(sigsig))
+        for k in range(len(sigsig)):
+            sigsig[k] = sig[2*k]+sig[2*k+1]
+            sigori[k] = original[i, 2*k, 1]+original[i, 2*k+1, 1]
+
+        quant = np.zeros(len(sigsig))
+        for k in range(len(sigsig)):
+            quant[k] = np.sum(sigsig[0:k]**2)
+
+        derivative = np.diff(quant)
+
+        plt.figure()
+        ax = plt.gca()
+
+        # plt.plot(quant, ls='-',
+        #          label=r"$\int_{t_0}^t {\rm d}t' (E_{\rm signal}(t')+E_{\rm noise}(t'))^2$")
+        plt.plot(derivative, ls='-',
+                 label=r"${\rm d}/{\rm d}t \int_{t_0}^t {\rm d}t' (E_{\rm signal}(t')+E_{\rm noise}(t'))^2$")
+        plt.plot(sigsig**2, ls='--',
+                 label=r'$(E_{\rm signal}+E_{\rm noise})^2$')
+        # plt.plot(sigori**2, ls='-', label=r'$(E_{\rm signal})^2$')
+
+        ax.xaxis.set_ticks_position('both')
+        ax.yaxis.set_ticks_position('both')
+        ax.tick_params(labelsize=14)
+        # ax.set_xlim([-10, 10])
+        # ax.set_ylim([-10, 10])
+        plt.subplots_adjust(left=0.14)
+        ax.set_xlabel(r"Time bins", fontsize=14)
+        # ax.set_ylabel(r"Amplitude E-field", fontsize=14)
+        plt.legend(fontsize=14, frameon=False)
+
     plt.show()
 
 
 if __name__ == "__main__":
     vis_traces(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]))
+
+# vis_traces('/Users/claireguepin/Projects/GRAND/GP300Outbox/',
+#            'efield_traces.csv', 0, 1)
 
 # =============================================================================
 # CREATE A DATABANK OF E-FIELD TRACES
@@ -173,3 +270,21 @@ if __name__ == "__main__":
 #     #             + progenitor+zenVal+'_'+str(index)+'.pdf')
 
 #     plt.show()
+
+# noise = np.random.normal(loc=0.0,
+#                          scale=1.0,
+#                          size=100000)
+# plt.figure()
+# ax = plt.gca()
+
+# # plt.hist(noise, 100)
+# plt.hist(noise**2, 100)
+
+# ax.xaxis.set_ticks_position('both')
+# ax.yaxis.set_ticks_position('both')
+# ax.tick_params(labelsize=14)
+# # ax.set_xlim([-10, 10])
+# # ax.set_ylim([-10, 10])
+# plt.subplots_adjust(left=0.14)
+# # ax.set_xlabel(r"Time bins", fontsize=14)
+# # ax.set_ylabel(r"Amplitude E-field", fontsize=14)
