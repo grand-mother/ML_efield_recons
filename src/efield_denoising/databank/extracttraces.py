@@ -195,12 +195,12 @@ def create_trace_db(PATH_data, lentrace, nfiles, nantsave):
     save_data(PATH_data, "voltage_traces", voltage_tot)
 
 
-if __name__ == "__main__":
-    create_efield_file(sys.argv[1], int(sys.argv[2]),
-                        int(sys.argv[3]), int(sys.argv[4]))
+# if __name__ == "__main__":
+#     create_efield_file(sys.argv[1], int(sys.argv[2]),
+#                         int(sys.argv[3]), int(sys.argv[4]))
 
-# path_loc = '/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023/'
-# create_trace_db(path_loc, 1000, 711, 5)
+path_loc = '/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023/'
+create_trace_db(path_loc, 1000, 1737, 5)
 
 # print(np.shape(read_data("/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023/voltage_traces.csv", 3)))
 
