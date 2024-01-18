@@ -11,27 +11,24 @@ Created on Mon Oct 16
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
 from torch import nn
-import torch.nn.functional as F
-import torch.optim as optim
 from databank.extracttraces import read_data
 
 
 # =============================================================================
 # CREATE DATASETS
 
-path = '/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023/'
-efield_tensor = torch.tensor(read_data(path+'efield_traces.csv', 3))
-voltage_tensor = torch.tensor(read_data(path+'voltage_traces.csv', 3))
-data = np.array([read_data(path+'efield_traces.csv', 3),
-                 read_data(path+'voltage_traces.csv', 3)])
-print(np.shape(data))
-data = np.transpose(data, axes=(1, 0, 2, 3))
-data_tensor = torch.tensor(data)
+path = '/Users/claireguepin/Projects/GRAND/'
 
-print(np.shape(efield_tensor))
-print(np.shape(voltage_tensor))
+efield = read_data(path+'efield_traces.csv', 3)
+voltage = read_data(path+'voltage_traces.csv', 3)
+
+efield2 = (efield[:, :, 0]**2+efield[:, :, 1]**2+efield[:, :, 2]**2)
+voltage2 = (voltage[:, :, 0]**2+voltage[:, :, 1]**2+voltage[:, :, 2]**2)
+
+data = np.array([efield2, voltage2])
+data = np.transpose(data, axes=(1, 0, 2))
+data_tensor = torch.tensor(data)
 print(np.shape(data_tensor))
 
 train, valid, test = torch.split(data_tensor, (1800, 200, 50), 0)
@@ -150,9 +147,9 @@ def train_epoch_den(encoder, decoder, device, dataloader, loss_fn, optimizer):
     for image in dataloader:
         iterloc += 1
         # print(np.shape(image))
-        image_batch = image[:, 0, :, 0]
-        # image_noisy = image[:, 1, :, 0]
-        image_noisy = image[:, 0, :, 0]
+        image_batch = image[:, 0, :]
+        # image_noisy = image[:, 1, :]
+        image_noisy = image[:, 0, :]
         # Move tensor to the proper device
         image_batch = image_batch.to(device)
         image_noisy = image_noisy.to(device)
@@ -203,9 +200,9 @@ def test_epoch_den(encoder, decoder, device, dataloader, loss_fn):
         conc_label = []
         for image in dataloader:
             # Move tensor to the proper device
-            image_batch = image[:, 0, :, 0]
-            # image_noisy = image[:, 1, :, 0]
-            image_noisy = image[:, 0, :, 0]
+            image_batch = image[:, 0, :]
+            # image_noisy = image[:, 1, :]
+            image_noisy = image[:, 0, :]
             image_noisy = image_noisy.to(device)
             # Encode data
             encoded_data = encoder(image_noisy)
@@ -264,7 +261,7 @@ decoder.to(device)
 # =============================================================================
 # TRAINING
 
-num_epochs = 100
+num_epochs = 50
 history_da = {'train_loss': [], 'val_loss': []}
 
 for epoch in range(num_epochs):
@@ -309,11 +306,40 @@ plt.show()
 # =============================================================================
 # VISUALIZE SOME TESTS
 
+it_train = 0
+for train_sig in train_loader:
+    it_train += 1
+    efield = train_sig[:, 0, :]
+    # voltage = test_sig[:, 1, :]
+    voltage = train_sig[:, 0, :]
+    voltage = voltage.to(device)
+    encoder.eval()
+    decoder.eval()
+    with torch.no_grad():
+        rec_sig = decoder(encoder(voltage))
+
+    fig = plt.figure()
+    ax = plt.gca()
+    plt.subplots_adjust(left=0.13)
+    plt.plot(efield[0], ls='-', lw=3, label="Signal")
+    plt.plot(rec_sig[0], ls='-', lw=2, label="Reconstructed signal")
+    ax.tick_params(labelsize=14)
+    # plt.xlabel(r'Simulation number', fontsize=14)
+    # plt.ylabel(r'$\log_{10} (E)$', fontsize=14)
+    plt.legend(frameon=False, fontsize=14)
+    # ax.set_xlim([-10000,10000])
+    # ax.set_ylim([-10000,10000])
+    plt.show()
+
+    if it_train > 10:
+        break
+
+it_test = 0
 for test_sig in test_loader:
-    print(np.shape(test_sig))
-    efield = test_sig[:, 0, :, 0]
+    it_test += 1
+    efield = test_sig[:, 0, :]
     # voltage = test_sig[:, 1, :, 0]
-    voltage = test_sig[:, 0, :, 0]
+    voltage = test_sig[:, 0, :]
     voltage = voltage.to(device)
     encoder.eval()
     decoder.eval()
@@ -347,4 +373,5 @@ for test_sig in test_loader:
     # ax.set_ylim([-10000,10000])
     plt.show()
 
-    break
+    if it_test > 10:
+        break
