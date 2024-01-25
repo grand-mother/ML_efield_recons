@@ -14,9 +14,23 @@ import uproot
 import pandas
 import torch
 import matplotlib.pyplot as plt
+from scipy.signal import hilbert
 
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
+
+
+def get_peak_tim_amp_hil(efield):
+    """Peak amplitude and time using hilbert envelope."""
+    # Enveloppe de hilbert x, y, z channels
+    hilbert_amp = np.abs(hilbert(efield))
+    # Find best peakamp for the 3 channels
+    peakamplitude = max([max(hilbert_amp[0, :]),
+                         max(hilbert_amp[1, :]),
+                         max(hilbert_amp[2, :])])
+    # Get the index of time of the peak amplitude
+    ipeak = np.where(hilbert_amp == peakamplitude)[1][0]
+    return [ipeak, peakamplitude]
 
 
 def extract_tra(inputfilename, quant):
@@ -48,7 +62,7 @@ def create_data_db(PATH_data, lentrace, nfiles, nantsave):
     # ADD number to refer to simulation number
     # ADD primary, energy, zenith and azimuth
     # ADD file name
-    info_tot = np.empty([0, 6])
+    info_tot = np.empty([0, 11])
     efield_tot = np.empty([0, 3, lentrace])
     voltage_tot = np.empty([0, 3, lentrace])
     for k in range(nfiles):
@@ -62,6 +76,7 @@ def create_data_db(PATH_data, lentrace, nfiles, nantsave):
         ener = file['tshower']['energy_primary'].array()[0]
         zeni = file['tshower']['zenith'].array()[0]
         azim = file['tshower']['azimuth'].array()[0]
+        positions = np.array(file['trun']['du_xyz'].arrays()[0]['du_xyz'])
         # print("Primary= %s" % prim)
         # print("Energy= %.2e" % ener)
         # print("Zenith angle = %.2f" % zeni)
@@ -83,9 +98,20 @@ def create_data_db(PATH_data, lentrace, nfiles, nantsave):
             voltage2_sum = np.sum(voltage_arr**2)
             voltage_ord = voltage_arr[efield2_ind[::-1], :, :]
 
-            info = np.array([np.array([prim, ener, zeni, azim,
-                                       efield2_sum, voltage2_sum])])
+            # Positions
+            positions_ord = positions[efield2_ind[::-1], :]
+
             for i in range(nantsave):
+                val_peak = get_peak_tim_amp_hil(efield_ord[i, :, :lentrace])
+                efield_ind_tim_peak = val_peak[0]
+                efield_val_amp_peak = val_peak[1]
+                info = np.array([np.array([prim, ener, zeni, azim,
+                                           efield2_sum, voltage2_sum,
+                                           efield_ind_tim_peak,
+                                           efield_val_amp_peak,
+                                           positions_ord[i, 0],
+                                           positions_ord[i, 1],
+                                           positions_ord[i, 2]])])
                 info_tot = np.append(info_tot, info, axis=0)
 
             efield_tot = np.append(efield_tot,
@@ -104,9 +130,13 @@ def create_data_db(PATH_data, lentrace, nfiles, nantsave):
     # SAVE TO FILE
 
     print(np.shape(info_tot))
-    info_df = pandas.DataFrame(info_tot, columns=["Primary", "Energy",
-                                                  "Zenith", "Azimuth",
-                                                  "Sum E^2", "Sum V^2"])
+    info_df = pandas.DataFrame(info_tot,
+                               columns=["Primary", "Energy",
+                                        "Zenith", "Azimuth",
+                                        "Sum E^2", "Sum V^2",
+                                        "Ind peak time",
+                                        "Val peak amplitude",
+                                        "DU x", "DU y", "DU z"])
     info_df.to_csv(PATH_data+"info"+'.csv')
 
     print(np.shape(efield_tot))
@@ -124,9 +154,10 @@ def create_data_db(PATH_data, lentrace, nfiles, nantsave):
 
 path_loc = '/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023_proton/'
 create_data_db(path_loc, 1000, 1737, 5)
+# create_data_db(path_loc, 1000, 10, 5)
 
-path_loc = '/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023_iron/'
-create_data_db(path_loc, 1000, 1724, 5)
+# path_loc = '/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023_iron/'
+# create_data_db(path_loc, 1000, 1724, 5)
 
 # =============================================================================
 # HOW TO LOAD DATA
