@@ -160,12 +160,14 @@ def create_trace_db(PATH_data, lentrace, nfiles, nantsave):
     # CREATE A DATABANK OF TRACES
     efield_tot = np.empty([0, 3, lentrace])
     voltage_tot = np.empty([0, 3, lentrace])
+    maxE2_arr = np.empty([0])
     for k in range(nfiles):
         index = k
         print(k)
         print(list_f[index])
         inputfilename = glob.glob(list_f[index] + '/gr*.RawRoot')[0]
         file = uproot.open(inputfilename)
+        print("Zenith angle = %.2f" % file['tshower']['zenith'].array()[0])
         if file['tshower']['zenith'].array()[0] > 70.:
             efield_arr = extract_tra(inputfilename, 'efield')
             inputfilename = glob.glob(list_f[index] + '/gr*.Voltage')[0]
@@ -175,6 +177,9 @@ def create_trace_db(PATH_data, lentrace, nfiles, nantsave):
             efield2_arr_max = np.max(efield2_arr, axis=1)
             efield2_ind = np.argsort(efield2_arr_max)
             efield_ord = efield_arr[efield2_ind[::-1], :, :]
+            maxE2 = np.max(np.sum(efield_ord[0, :, :]**2, axis=1))
+            maxE2_arr = np.append(maxE2_arr, maxE2)
+            print("Max sum efield^2 = %.2e" % maxE2)
             voltage_ord = voltage_arr[efield2_ind[::-1], :, :]
             efield_tot = np.append(efield_tot,
                                    efield_ord[0:nantsave, :, :lentrace],
@@ -194,13 +199,29 @@ def create_trace_db(PATH_data, lentrace, nfiles, nantsave):
     save_data(PATH_data, "efield_traces", efield_tot)
     save_data(PATH_data, "voltage_traces", voltage_tot)
 
+    plt.figure()
+    ax = plt.gca()
+    plt.hist(np.log10(maxE2_arr), bins=10)
+    ax.xaxis.set_ticks_position('both')
+    ax.yaxis.set_ticks_position('both')
+    ax.tick_params(labelsize=14)
+    # ax.set_xlim([-10, 10])
+    # ax.set_ylim([-10, 10])
+    # plt.subplots_adjust(left=0.14)
+    # ax.set_xlabel(r"$X\,{\rm\,(km)}$", fontsize=14)
+    # ax.set_ylabel(r"$Y\,{\rm\,(km)}$", fontsize=14)
+    # plt.savefig(PATH_fig+'GP300_footprint_example'+'_'+str(index)+'.pdf')
+    # plt.show()
+
+
 
 # if __name__ == "__main__":
 #     create_efield_file(sys.argv[1], int(sys.argv[2]),
 #                         int(sys.argv[3]), int(sys.argv[4]))
 
-path_loc = '/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023/'
-create_trace_db(path_loc, 1000, 1737, 5)
+# path_loc = '/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023/'
+# path_loc = '/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023_iron/'
+# create_trace_db(path_loc, 1000, 50, 1)
 
 # print(np.shape(read_data("/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023/voltage_traces.csv", 3)))
 
