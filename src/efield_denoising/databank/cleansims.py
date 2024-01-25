@@ -10,7 +10,7 @@ import sys
 import glob
 import shutil
 
-path_loc = '/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023/'
+path_loc = '/Users/claireguepin/Projects/GRAND/GP300LibraryXi2023_iron/'
 list_f = glob.glob(path_loc+'*')
 print('Number of files = %i' % (len(list_f)))
 
