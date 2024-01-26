@@ -26,30 +26,59 @@ plt.rc('font', family='serif')
 # CREATE DATASETS
 
 path = '/Users/claireguepin/Projects/GRAND/'\
-    + 'ML_efield_recons/Recons_Peak_Voltage_Train5000_Epoch100_conv2d/'
+    + 'ML_efield_recons/Recons_Peak_Voltage_Train5000_Epoch100_conv3d_NAdam/'
 
+voltage = torch.load(path+'voltage_traces_p.pt')
 info = pandas.read_csv(path+'info_p.csv')
 
-ind = np.array([[info["Ind peak time"]]])
-ind = torch.tensor(ind.repeat(3, 0).repeat(1000, 1).T)
-indmax = 1000
-print(np.shape(ind))
-val = np.array([[info["Val peak amplitude"]]])
-val = torch.tensor(val.repeat(3, 0).repeat(1000, 1).T)
-valmax = torch.max(torch.abs(val))
-print(np.shape(val))
-vol = np.array([[np.sqrt(info["Sum V^2"]/max(info["Sum V^2"]))]])
-voltot = torch.tensor(vol.repeat(3, 0).repeat(1000, 1).T)
-print(np.shape(voltot))
-voltage = torch.load(path+'voltage_traces_p.pt')
+# FEATURES
+
 volmax = torch.max(torch.abs(voltage))
+voltage /= volmax
 print(np.shape(voltage))
-data = torch.stack((ind/indmax, val/valmax, voltage/volmax, voltot), dim=3)
-print(np.shape(data))
-data = torch.permute(data, (0, 2, 1, 3))
+
+pos = np.array([[info["DU x"], info["DU y"], info["DU z"]]])
+posmax = np.max(pos)
+pos /= posmax
+pos = torch.tensor(pos.repeat(1000, 0))
+pos = torch.permute(pos, (2, 0, 1))
+print(np.shape(pos))
+
+# Concatenate voltage and antenna positions
+features = torch.cat((voltage, pos), dim=2)
+print(np.shape(features))
+# Then separate into batches of 5 traces per event (5270/5 = 1054)
+features = torch.reshape(features, (1054, 5, 1000, 6))
+print(np.shape(features))
+
+vol = np.array([[np.sqrt(info["Sum V^2"]/max(info["Sum V^2"]))]])
+voltot = torch.tensor(vol.repeat(1000, 1)).mT
+voltot = torch.reshape(voltot, (1054, 5, 1000, 1))
+print(np.shape(voltot))
+
+# LABELS
+
+ind = np.array([[info["Ind peak time"]]]).astype(float)
+indmax = 1000.
+ind /= indmax
+ind = torch.tensor(ind.repeat(1000, 1)).mT
+ind = torch.reshape(ind, (1054, 5, 1000, 1))
+print(np.shape(ind))
+
+val = np.array([[info["Val peak amplitude"]]])
+val = torch.tensor(val.repeat(1000, 1)).mT
+valmax = torch.max(torch.abs(val))
+val /= valmax
+val = torch.reshape(val, (1054, 5, 1000, 1))
+print(np.shape(val))
+
+# Concatenate everything
+data = torch.cat((features, voltot, ind, val), dim=3)
+data = torch.permute(data, (0, 1, 3, 2))
 print(np.shape(data))
 
-train, valid, test = torch.split(data, (5000, 100, 170), 0)
+num_train = 800
+train, valid, test = torch.split(data, (num_train, 100, 1054-100-num_train), 0)
 
 batch_size = 1
 
@@ -77,7 +106,9 @@ class Net(nn.Module):
 
         # Convolutional section
         self.encoder_cnn = nn.Sequential(
-            nn.Conv2d(1, 8, 3, stride=2, padding=0),
+            nn.Conv3d(1, 8, 3, stride=2, padding=1),
+            nn.ReLU(True),
+            nn.Conv3d(8, 16, 2, stride=2, padding=0),
             nn.ReLU(True),
         )
 
@@ -85,7 +116,7 @@ class Net(nn.Module):
         self.flatten = nn.Flatten(start_dim=0)
         # Linear section
         self.encoder_lin = nn.Sequential(
-            nn.Linear(8 * 499+1, fc2_input_dim),
+            nn.Linear(16 * 250+1, fc2_input_dim),
             nn.ReLU(True),
         )
         self.encoder_lin2 = nn.Sequential(
@@ -93,16 +124,14 @@ class Net(nn.Module):
         )
 
     def forward(self, x):
+        """Forward."""
         # print("ENCODE")
         # print(np.shape(x))
-        xloc = x[:, 0, 0, 1]
-        x = x[:, :, :, 0]
+        xloc = x[:, 0, 6, 0]
+        x = x[:, :, :6, :]
         # print(np.shape(x))
         x = self.encoder_cnn(x)
         # print(np.shape(x))
-        # x = self.encoder_cnn2(x)
-        # print(np.shape(x))
-       # print(np.shape(x))
         x = self.flatten(x)
         # print(np.shape(x))
         x = torch.cat((x, xloc))
@@ -120,19 +149,19 @@ def train_epoch_den(encoder, device, dataloader, loss_fn, optimizer):
     train_loss = []
     # Iterate the dataloader
     iterloc = 0
-    for image in dataloader:
+    for data in dataloader:
         iterloc += 1
-        image_batch = image[0, 0, 0, 0:2]
-        image_noisy = image[:, :, :, 2:4]
+        features = data[:, :, :7, :]
+        labels = data[0, 0, 7:10, 0]
 
         # Move tensor to the proper device
-        image_batch = image_batch.to(device)
-        image_noisy = image_noisy.to(device)
+        labels = labels.to(device)
+        features = features.to(device)
 
         # Encode data
-        recons_data = encoder(image_noisy)
+        recons_data = encoder(features)
         # Evaluate loss
-        loss = loss_fn(recons_data, image_batch)
+        loss = loss_fn(recons_data, labels)
         # Backward pass
         optimizer.zero_grad()
         loss.backward()
@@ -154,19 +183,19 @@ def test_epoch_den(encoder, device, dataloader, loss_fn):
         # Define the lists to store the outputs for each batch
         conc_out = []
         conc_label = []
-        for image in dataloader:
-            image_batch = image[0, 0, 0, 0:2]
-            image_noisy = image[:, :, :, 2:4]
+        for data in dataloader:
+            features = data[:, :, :7, :]
+            labels = data[0, 0, 7:10, 0]
 
             # Move tensor to the proper device
-            image_noisy = image_noisy.to(device)
+            features = features.to(device)
 
             # Encode data
-            recons_data = encoder(image_noisy)
+            recons_data = encoder(features)
 
             # Append the network output and the original trace to the lists
             conc_out.append(recons_data.cpu())
-            conc_label.append(image_batch.cpu())
+            conc_label.append(labels.cpu())
         # Create a single tensor with all the values in the lists
         conc_out = torch.cat(conc_out)
         conc_label = torch.cat(conc_label)
@@ -189,9 +218,9 @@ torch.manual_seed(0)
 net = Net(fc2_input_dim=8).double()
 params_to_optimize = net.parameters()
 
-# optimtype = torch.optim.Adam(params_to_optimize)
+optimtype = torch.optim.Adam(params_to_optimize)
 # optimtype = torch.optim.NAdam(params_to_optimize)
-optimtype = torch.optim.RAdam(params_to_optimize)
+# optimtype = torch.optim.RAdam(params_to_optimize)
 
 # we can also implement momentum decay, results are quite sensitive to it
 # optimtype = torch.optim.NAdam(params_to_optimize, momentum_decay=0.003)
@@ -254,7 +283,7 @@ it_train = 0
 MSE = 0
 for train_sig in train_loader:
     it_train += 1
-    ampl = train_sig[0, 0, 0, 1].item()
+    ampl = train_sig[0, 0, 8, 0].item()
     MSE += (indobj/indmax)**2 + (valobj*ampl)**2
 MSE /= it_train
 
@@ -310,14 +339,14 @@ ind_real = np.empty([0])
 ind_reco = np.empty([0])
 val_real = np.empty([0])
 val_reco = np.empty([0])
-for image in train_loader:
-    ind_real = np.append(ind_real, image[0, 0, 0, 0])
-    val_real = np.append(val_real, image[0, 0, 0, 1])
-    voltage = image[:, :, :, 2:4]
-    voltage = voltage.to(device)
+for data in train_loader:
+    ind_real = np.append(ind_real, data[0, 0, 7, 0])
+    val_real = np.append(val_real, data[0, 0, 8, 0])
+    features = data[:, :, 0:7, :]
+    features = features.to(device)
     net.eval()
     with torch.no_grad():
-        rec_sig = (net(voltage))
+        rec_sig = (net(features))
     ind_reco = np.append(ind_reco, rec_sig[0])
     val_reco = np.append(val_reco, rec_sig[1])
 
@@ -357,14 +386,14 @@ ind_real = np.empty([0])
 ind_reco = np.empty([0])
 val_real = np.empty([0])
 val_reco = np.empty([0])
-for image in valid_loader:
-    ind_real = np.append(ind_real, image[0, 0, 0, 0])
-    val_real = np.append(val_real, image[0, 0, 0, 1])
-    voltage = image[:, :, :, 2:4]
-    voltage = voltage.to(device)
+for data in valid_loader:
+    ind_real = np.append(ind_real, data[0, 0, 7, 0])
+    val_real = np.append(val_real, data[0, 0, 8, 0])
+    features = data[:, :, 0:7, :]
+    features = features.to(device)
     net.eval()
     with torch.no_grad():
-        rec_sig = (net(voltage))
+        rec_sig = (net(features))
     ind_reco = np.append(ind_reco, rec_sig[0])
     val_reco = np.append(val_reco, rec_sig[1])
 
@@ -405,14 +434,14 @@ ind_real = np.empty([0])
 ind_reco = np.empty([0])
 val_real = np.empty([0])
 val_reco = np.empty([0])
-for image in test_loader:
-    ind_real = np.append(ind_real, image[0, 0, 0, 0])
-    val_real = np.append(val_real, image[0, 0, 0, 1])
-    voltage = image[:, :, :, 2:4]
-    voltage = voltage.to(device)
+for data in test_loader:
+    ind_real = np.append(ind_real, data[0, 0, 7, 0])
+    val_real = np.append(val_real, data[0, 0, 8, 0])
+    features = data[:, :, 0:7, :]
+    features = features.to(device)
     net.eval()
     with torch.no_grad():
-        rec_sig = (net(voltage))
+        rec_sig = (net(features))
     ind_reco = np.append(ind_reco, rec_sig[0])
     val_reco = np.append(val_reco, rec_sig[1])
 
